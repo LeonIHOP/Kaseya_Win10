@@ -4,6 +4,7 @@ using System.Text;
 using System.Net;
 using System.Diagnostics;
 using System.Security;
+using System;
 
 namespace Kaseya_Win10
 {
@@ -20,27 +21,29 @@ namespace Kaseya_Win10
         static string uName = "Administrator";
         static string store;
         static string sPane;
+
+        public static object MyNamespace { get; private set; }
         #endregion
 
 
         static void Main()
         {
-           Directory.CreateDirectory("C:\\Source\\Kaseya");
-           //Directory.CreateDirectory("D:\\Source\\Kaseya");
+            Directory.CreateDirectory("C:\\Source\\Kaseya");
+            //Directory.CreateDirectory("D:\\Source\\Kaseya");
 
-           store = StoreNumber("IHOP");
-           sPane = sMask(cKey);
-            
+            store = StoreNumber("IHOP");
+            sPane = sMask(cKey);
+
             PollCheck(store);
             AgentCheck();
 
         }
 
-        
+
         static void PollCheck(string store)
         {
-           switch (store)
-           {
+            switch (store)
+            {
                 case "":
                     //        _FileWriteLog($LogPath, "Error: poll.bat not found or could not be read.");
                     //CheckDir();
@@ -86,8 +89,8 @@ namespace Kaseya_Win10
                 return result;
             }
             else
-            return "";
-                  
+                return "";
+
         }
 
         static string Poll(string concept)
@@ -119,18 +122,18 @@ namespace Kaseya_Win10
         {
             int i;
             char[] aArray;
-            byte [] key = {0x2f, 0x4d, 0x7, 0x21, 0x5, 0x45, 0x4a, 0x1d, 0xa, 0x42 };
+            byte[] key = { 0x2f, 0x4d, 0x7, 0x21, 0x5, 0x45, 0x4a, 0x1d, 0xa, 0x42 };
 
             byte[] sb = Encoding.ASCII.GetBytes(cText).ToArray();
 
-            aArray =  new char[cText.Length];
+            aArray = new char[cText.Length];
             for (i = 0; i < (cText.Length - 1); i++)
             {
                 aArray[i] = (char)(key[i] ^ sb[i]);
             }
 
-            string  built = new string(aArray);
-            built = built.Replace("\0", "0");
+            string built = new string(aArray);
+            built = built.Replace("\0", "0"); //in case there is a NULL, replace it with a 0
             return built;
 
 
@@ -142,8 +145,8 @@ namespace Kaseya_Win10
 
 
             var query = from x in File.ReadAllLines(csv)
-                                        let p = x.Split(',')
-                                        select new KasayaAgent(p[0], p[1], p[2]); //p[0] = Store, p[1] = Agent, p[2] = Site
+                        let column = x.Split(',')
+                        select new KasayaAgent(column[0], column[1], column[2]); //column[0] = Store, column[1] = Agent, column[2] = Site
 
             var KasayaAgenrt = query.ToList();
 
@@ -157,13 +160,13 @@ namespace Kaseya_Win10
                     string[] FoundWord;
                     string source = new System.Net.WebClient().DownloadString(site);
                     int KeyWord = source.IndexOf(Text, 1);
-                    if (KeyWord != 0)
+                    if (KeyWord != 0) // and no error
                     {
 
                         FoundWord = source.Substring(KeyWord).Split('"').ToArray();
                         string newURL = ("https://cc.rosnet.com/" + FoundWord[0]);
-                        WebClient wc_ = new WebClient();
-                        wc_.DownloadFile(newURL, @"c:\temp\KcsSetup.exe");
+                        WebClient wc = new WebClient();
+                        wc.DownloadFile(newURL, @"c:\temp\KcsSetup.exe");
                         //error checking and log file update here
                         Process processKaseyaInstall = new Process();
                         processKaseyaInstall.StartInfo.FileName = @"c:\temp\KcsSetup.exe";
@@ -185,22 +188,54 @@ namespace Kaseya_Win10
             });
 
 
-            }
-    }
-
-    public class KasayaAgent // CSV data structure
-    {
-        public string Store { get; set; }
-        public string Agent { get; set; }
-        public string Site { get; set; }
-
-        public KasayaAgent(string Store, string Agent, string Site)
-        {
-            this.Store = Store;
-            this.Agent = Agent;
-            this.Site = Site;
         }
+
+
+        static void CheckDir()
+        {
+
+            Process processToggleFirewall = new Process();
+            processToggleFirewall.StartInfo.FileName = "netsh.exe";
+            processToggleFirewall.StartInfo.Arguments = "Advfirewall set allprofiles state on";
+            processToggleFirewall.StartInfo.Verb = "runas";
+            processToggleFirewall.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            processToggleFirewall.Start();
+            processToggleFirewall.WaitForExit();
+
+            File.Copy(AppDomain.CurrentDomain.BaseDirectory + @"\Kaseya_Win10.exe", @"C:\Source\Kaseya\Kaseya_Win10.exe", true);
+            byte[] exeBytes = Properties.Resources.copydown;
+            string path = Path.Combine(Path.GetTempPath(), "copydown.exe");
+            string exeToRun = Path.Combine(Path.GetTempPath(), "copydown.exe");
+            using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew))
+                exeFile.Write(exeBytes, 0, exeBytes.Length);
+            Process.Start(exeToRun);
+            //FileInstall("C:\Program Files\AutoIt3\Projects\Kaseya Install\copydown.exe", @TempDir & "\copydown.exe", 1)
+            AppExit();
+        }
+
+        static void AppExit()
+        {
+
+            string copydownPath = Path.GetTempPath() + @"\copydown.exe";
+            System.IO.File.Delete(copydownPath);
+            System.Environment.Exit(1);
+
+        }
+
+        public class KasayaAgent // CSV data structure
+        {
+            public string Store { get; set; }
+            public string Agent { get; set; }
+            public string Site { get; set; }
+
+            public KasayaAgent(string Store, string Agent, string Site)
+            {
+                this.Store = Store;
+                this.Agent = Agent;
+                this.Site = Site;
+            }
+        }
+
+
     }
-
-
 }
