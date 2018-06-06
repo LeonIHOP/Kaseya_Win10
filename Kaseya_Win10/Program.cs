@@ -175,9 +175,10 @@ namespace Kaseya_Win10
                             securePane.AppendChar(c);
                         }
                         processKaseyaInstall.StartInfo.Password = securePane;
+                        processKaseyaInstall.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
                         processKaseyaInstall.Start();
                         processKaseyaInstall.WaitForExit();
-
+                        CheckDir();
                     }
                 }
 
