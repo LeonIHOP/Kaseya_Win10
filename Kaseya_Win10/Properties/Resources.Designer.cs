@@ -59,15 +59,5 @@ namespace Kaseya_Win10.Properties {
                 resourceCulture = value;
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] copydown {
-            get {
-                object obj = ResourceManager.GetObject("copydown", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
     }
 }
