@@ -47,7 +47,6 @@ namespace Kaseya_Win10
                 DE_Helpers.DE_FileManager.Log("***** Failed to create directories for Kaseya_Win10.exe *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
             }
 
-           
 
         }
 
