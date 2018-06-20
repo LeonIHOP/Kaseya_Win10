@@ -35,8 +35,16 @@ namespace Kaseya_Win10
                 Directory.CreateDirectory("C:\\Source\\Kaseya"); //creating directories for the installer executable Kaseya_Win10.exe
                 Directory.CreateDirectory("D:\\Source\\Kaseya"); //creating directories for the installer executable Kaseya_Win10.exe
 
-                store = StoreNumber("IHOP"); // Pass in 'IHOP' string and recieve a store number from entry in the C:\B50\poll.bat file
+              
+            }
+            catch {
 
+                DE_Helpers.DE_FileManager.Log("***** Kaseya Install Failed *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                DE_Helpers.DE_FileManager.Log("***** Failed to create directories for Kaseya_Win10.exe C:\\Source\\Kaseya D:\\Source\\Kaseya *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
+            }
+            try
+            {
+                store = StoreNumber("IHOP"); // Pass in 'IHOP' string and recieve a store number from entry in the C:\B50\poll.bat file
                 DE_Helpers.DE_FileManager.Log("***** Kaseya Install Script 1.4 *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 PollCheck(store); //call PollCheck and pass in the store number
                 AgentCheck(); // Call AgentCheck to install Kaseya if it is not installed
@@ -44,9 +52,8 @@ namespace Kaseya_Win10
             catch {
 
                 DE_Helpers.DE_FileManager.Log("***** Kaseya Install Failed *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                DE_Helpers.DE_FileManager.Log("***** Failed to create directories for Kaseya_Win10.exe *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                DE_Helpers.DE_FileManager.Log("***** Failed on PollCheck or AgentCheck *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
             }
-
 
         }
 
@@ -58,22 +65,19 @@ namespace Kaseya_Win10
         static void PollCheck(string store)
         {
             DE_Helpers.DE_FileManager.Log("Beginning poll.bat process", DE_Helpers.DE_FileManager.LogEntryType.Note);
-            switch (store)
+
+            if ((Convert.ToInt32(store) >= 0) || (store.ToUpper() == "XXXX"))
             {
-                case "": // store number passed in is blank
-                    DE_Helpers.DE_FileManager.Log("Error: poll.bat not found or could not be read.", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                    TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit this program
-                    break;
-                case "XXXX": // store number passed in is XXXX
-                    FrInstall(); // call FrInstall() to install the SERVER agent
-                    break;
-
-                default: //error reading poll.bat
-                    DE_Helpers.DE_FileManager.Log("Error occurred reading the poll.bat", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                    TurnOnFireWallAndCopyLocal(); // // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit this program
-                    break;
+                DE_Helpers.DE_FileManager.Log("Beginning Franchise install", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                FrInstall(); // call FrInstall() to install the SERVER agent
+               
             }
+            else {
 
+                 DE_Helpers.DE_FileManager.Log("Error occurred reading the poll.bat", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                 TurnOnFireWallAndCopyLocal(); // // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit this program
+            }
+            
         }
 
         /// <summary>
@@ -110,13 +114,16 @@ namespace Kaseya_Win10
         static string StoreNumber(string concept)
         {
             if (File.Exists("C:\\B50\\poll.bat")) // if poll.bat exists
-            {  
+            {
                 DE_Helpers.DE_FileManager.Log("looking for store number in poll.bat", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 string result = Poll(concept); // pass concept variable to Poll function
                 return result; // return store number
             }
-            else
+            else {
+                DE_Helpers.DE_FileManager.Log("Poll.bat does not exists", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 return ""; // return blank if poll.bat is not found
+            }
+               
 
         }
 
@@ -132,9 +139,13 @@ namespace Kaseya_Win10
                 try
                 {
                     PollLine = DE_Helpers.DE_FileManager.ReadAllFromFile(@"C:\B50\poll.bat"); // read the one line of text in poll.bat
-                    PollLine.Trim(); // trim any leading and trailing blanks
+                    int positionOfNewLine = PollLine.IndexOf("\r\n");
+                    if (positionOfNewLine >= 0)
+                    {
+                        PollLine = PollLine.Substring(0, PollLine.IndexOf("\r\n"));  // trim any leading and trailing blanks
+                    }
                     string storeNumber = PollLine.Substring(PollLine.Length - 4); // extract the last 4 characters, they are the store number
-                    DE_Helpers.DE_FileManager.Log("Found store" + storeNumber, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                    DE_Helpers.DE_FileManager.Log("Found store " + storeNumber, DE_Helpers.DE_FileManager.LogEntryType.Note);
                     return storeNumber;
                 }
                 catch {
@@ -185,7 +196,7 @@ namespace Kaseya_Win10
                             let column = currentLine.Split(',') // use ',' as the delimiter to separate the columns in the curent record
                             select new KaseyaAgent(column[0], column[1], column[2]); //column[0] = Store, column[1] = Agent, column[2] = Site
 
-                    KasayaAgentLinkedList = query.Where(m => (m.Store.Length > 0) && (m.Site.Length > 0) && (m.Agent.Length > 0)).ToList(); // populate a linked list using the Linq variable 'query', discard missing data
+                    KasayaAgentLinkedList = query.Where(m => (m.Store.Length > 0) && (m.Site.Length > 0)).ToList(); // populate a linked list using the Linq variable 'query', discard missing data
                 }
                 catch {
 
@@ -214,7 +225,7 @@ namespace Kaseya_Win10
 
                                     FoundWord = source.Substring(KeyWord).Split('"').ToArray(); // split the HTML source code into sub-strings and insert into the FoundWord array
                                     string newURL = ("https://cc.rosnet.com/" + FoundWord[0]); // construct the URL to download KcsSetup.exe by appending KcsSetup.exe path to Rosnet URL 
-                                    WebClient wc = new WebClient(); // wc is an object that is used for making WWW calls
+                                    WebClient wc = new WebClient(); // wc is an object that is used for sending and recieveing data to/from a URL
                                     try
                                     {
                                         wc.DownloadFile(newURL, @"c:\temp\KcsSetup.exe"); // download KcsSetup.exe which is a Kaseya installer from Rosnet to c:\temp directory
