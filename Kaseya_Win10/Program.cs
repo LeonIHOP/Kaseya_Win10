@@ -32,6 +32,7 @@ namespace Kaseya_Win10
         /// </summary>
         static void Main() // Entry point into this app
         {
+            
             try
             {
                 Directory.CreateDirectory("C:\\Source\\Kaseya"); //creating directories for the installer executable Kaseya_Win10.exe
@@ -112,14 +113,20 @@ namespace Kaseya_Win10
                     {
                         FrInstall(); // do a Franchise install
                     }
-                    else { // Kaseya is already installed
+                    else
+                    { // Kaseya is already installed
 
-                        var iAgent = key.GetValue("DriverControl\\"+ iQuery+ "MachineID");
+                        var iAgent = key.GetValue("DriverControl\\" + iQuery + "MachineID");
                         DE_Helpers.DE_FileManager.Log("Kaseya agent " + iAgent + " already installed.", DE_Helpers.DE_FileManager.LogEntryType.Note);
                         TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit this program
                     }
 
                 }
+                else {
+                    DE_Helpers.DE_FileManager.Log(" Software\\Wow6432Node\\KASEYA\\AGENT is NULL", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                    TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit this program
+                }
+                
             }
            
         }
@@ -248,6 +255,7 @@ namespace Kaseya_Win10
                                         WebClient wc = new WebClient(); // wc is an object that is used for sending and recieveing data to/from a URL
                                         try
                                         {
+                                            DE_Helpers.DE_FileManager.Log("Installing Franchise Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
                                             wc.DownloadFile(newURL, @"c:\temp\KcsSetup.exe"); // download KcsSetup.exe which is a Kaseya installer from Rosnet to c:\temp directory
                                             DE_Helpers.DE_FileManager.Log("Download complete", DE_Helpers.DE_FileManager.LogEntryType.Note);
                                             wc.Dispose();
@@ -263,8 +271,8 @@ namespace Kaseya_Win10
                                         {
                                             string commandToRun = @"c:\temp\KcsSetup.exe";
                                             DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion(); // assign OS version to os variable
-                                            string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 120, os); // Run the Kaseya setup, wait at most 2 minutes 600 seconds for the install to complete
-                                            DE_Helpers.DE_FileManager.Log("Installing Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                            string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 300, os); // Run the Kaseya setup, wait at most 5 minutes 300 seconds for the install to complete
+                                            DE_Helpers.DE_FileManager.Log("Installing Franchise Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
                                         }
                                         catch (Exception ex)
                                         {
@@ -320,7 +328,7 @@ namespace Kaseya_Win10
             try
             {
                 wc.DownloadFile("https://cc.rosnet.com/mkDefault.asp?id=58224222", @"c:\temp\KcsSetup.exe"); // construct the URL to download KcsSetup.exe by appending KcsSetup.exe path to Rosnet URL 
-                DE_Helpers.DE_FileManager.Log("Installing Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                DE_Helpers.DE_FileManager.Log("Installing DineEquity Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
             }
              catch(Exception ex) 
             {
@@ -334,7 +342,7 @@ namespace Kaseya_Win10
             {
                 string commandToRun = @"c:\temp\KcsSetup.exe";
                 DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion();
-                string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 120, os); // Run the Kaseya setup, wait at most 2 minutes 120 seconds for the install to complete
+                string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 300, os); // Run the Kaseya setup, wait at most 5 minutes 300 seconds for the install to complete
                 DE_Helpers.DE_FileManager.Log("Installing Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
             }
              catch(Exception ex)
@@ -377,22 +385,64 @@ namespace Kaseya_Win10
                 
             }
 
-            DE_Helpers.DE_FileManager.Log("Copying to C:\\Source\\Kaseya and secondary...", DE_Helpers.DE_FileManager.LogEntryType.Note);
-            DE_Helpers.DE_FileManager.CopyAndCreateAsAdmin(AppDomain.CurrentDomain.BaseDirectory + @"\Kaseya_Win10.exe", @"C:\Source\Kaseya\Kaseya_Win10.exe"); // backup to  C:\Source\Kaseya
-            DE_Helpers.DE_FileManager.CopyAndCreateAsAdmin(@"C:\Source\Kaseya\Kaseya_Win10.exe", @"D:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Kaseya_Win10.exe"); //copying to d: startup so in failure recoevry to D: we will run Kaseya on startup
-           
+            try
+            {
+                DE_Helpers.DE_FileManager.Log("Copying to C:\\Source\\Kaseya and secondary...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                DE_Helpers.DE_FileManager.CopyAndCreateAsAdmin(AppDomain.CurrentDomain.BaseDirectory + @"\Kaseya_Win10.exe", @"C:\Source\Kaseya\Kaseya_Win10.exe"); // backup to  C:\Source\Kaseya
+                DE_Helpers.DE_FileManager.CopyAndCreateAsAdmin(@"C:\Source\Kaseya\Kaseya_Win10.exe", @"D:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\Kaseya_Win10.exe"); //copying to d: startup so in failure recoevry to D: we will run Kaseya on startup
+            }
+            catch(Exception ex)
+            {
+                DE_Helpers.DE_FileManager.Log("Could not Copy to C:\\Source\\Kaseya and D:\\startup... " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+            }
             // SelfDelete
-            if (AppDomain.CurrentDomain.BaseDirectory == @"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup") // if this executable is in the startup directory
+            if (AppDomain.CurrentDomain.BaseDirectory == "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\") // if this executable is in the startup directory
             {
                 DE_Helpers.DE_FileManager.Log("Install ran from the startup directory, self deleting and exiting...", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 // create delete_Kaseya batch file that will delete the Kaseya install .exe because we only want the installer to run once
                 //1. wait for 10 seconds before performing the delete
                 //2. change directory to the startup directory
-                //3. delete Kaseya_Win10.exe
-                string TextToWrite = "timeout /T 10 /NOBREAK > NUL " + Environment.NewLine + "cd /d " + "\"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\"" + Environment.NewLine + "del " + "\"Kaseya_Win10.exe\"";
-                DE_Helpers.DE_FileManager.WriteToFile(TextToWrite , AppDomain.CurrentDomain.BaseDirectory + @"delete_Kaseya.bat"); // write the batch file commands to delete_Kaseya.bat
-                commandToRun = AppDomain.CurrentDomain.BaseDirectory +  @"delete_Kaseya.bat"; // create the command that will execute this batch file
-                System.Diagnostics.Process.Start(commandToRun); // run the batch file command at the command line
+                //3. delete DE_IHOP_CC_Agents.csv
+                //4. delete Kaseya_Win10.exe
+                //5. delete DE_Helpers.dll
+                Directory.CreateDirectory("C:\\Temp"); //crete c:\temp if needed
+                try
+                {
+                    string TextToWrite = "timeout /T 10 /NOBREAK > NUL " + Environment.NewLine + "cd /d " + "\"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\"" 
+                        + Environment.NewLine + "del " + "\"Kaseya_Win10.exe\"";
+                    if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + @"DE_IHOP_CC_Agents.csv"))
+                        TextToWrite = TextToWrite + Environment.NewLine + "del " + "\"DE_IHOP_CC_Agents.csv\"";
+                    if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + @"DE_Helpers.dll"))
+                        TextToWrite = TextToWrite + Environment.NewLine + "del " + "\"DE_Helpers.dll\"";
+                    try
+                    {
+                        DE_Helpers.DE_FileManager.Log("Creating C:\\Temp\\delete_Kaseya.bat ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                        DE_Helpers.DE_FileManager.WriteToFile(TextToWrite, "C:\\Temp\\delete_Kaseya.bat"); // write the batch file commands to delete_Kaseya.bat
+
+                    }
+                    catch (Exception ex)
+                    {
+                        DE_Helpers.DE_FileManager.Log("unable to create C:\\Temp\\delete_Kaseya.bat " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                        AppExit(); //log and exit 
+                    }
+                    
+                    //DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion(); // assign OS version to os variable
+                    //string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun,1,os);
+                    try
+                    {
+                        DE_Helpers.DE_FileManager.Log("invoking C:\\Temp\\delete_Kaseya.bat ... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                        commandToRun = "C:\\Temp\\delete_Kaseya.bat"; // create the command that will execute this batch file
+                        System.Diagnostics.Process.Start(commandToRun); // run the batch file command at the command line
+                    }
+                    catch (Exception ex) {
+                        DE_Helpers.DE_FileManager.Log("unable to run C:\\Temp\\delete_Kaseya.bat " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                        AppExit(); //log and exit
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DE_Helpers.DE_FileManager.Log("unable to delete from startup... " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                }
                 System.Environment.Exit(0); // shut down this app
             }
 
