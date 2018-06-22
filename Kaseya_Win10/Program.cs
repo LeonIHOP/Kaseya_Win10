@@ -62,39 +62,41 @@ namespace Kaseya_Win10
 
         /// <summary>
         ///  Check for the presence of poll.bat
-        ///  If exists, do a Franchise install of Kaseya
+        ///  If exists, do a Franchise or Dine install of Kaseya
         ///  If mot then do clean up and exit app
         /// </summary>
         static void PollCheck(string store)
         {
             DE_Helpers.DE_FileManager.Log("Beginning poll.bat process", DE_Helpers.DE_FileManager.LogEntryType.Note);
 
-            try
-            {
-                int StoreNumber = Convert.ToInt32(store);
-                DE_Helpers.DE_FileManager.Log("Found a store number Beginning Franchise install", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                FrInstall(); // call FrInstall() to install the SERVER agent
-            }
-             catch(Exception ex) {
+            //try
+            //{
+            //    int StoreNumber = Convert.ToInt32(store);
+            //    DE_Helpers.DE_FileManager.Log("Found a store number Beginning Franchise install", DE_Helpers.DE_FileManager.LogEntryType.Note);
+            //    FrInstall(); // call FrInstall() to install the SERVER agent
+            //}
+            // catch(Exception ex) {
 
-                switch (store)
-                {
+            //    switch (store.ToUpper())
+            //    {
 
-                    case "XXXX":
-                        DE_Helpers.DE_FileManager.Log("Beginning install for XXXX", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                        FrInstall(); // call FrInstall() to install the SERVER agent
-                        break;
-                    case "":
-                      
-                    default:
-                        DE_Helpers.DE_FileManager.Log("Error occurred reading the poll.bat Store number is invalid " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
-                        TurnOnFireWallAndCopyLocal(); // // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit this program
-                        break;
+            //        case "XXXX":
+            //            DE_Helpers.DE_FileManager.Log("Beginning install for XXXX", DE_Helpers.DE_FileManager.LogEntryType.Note);
+            //            FrInstall(); // call FrInstall() to install the SERVER agent
+            //            break;
+            //        case "":
 
-                }
+            //        default:
+            //            DE_Helpers.DE_FileManager.Log("Error occurred reading the poll.bat Store number is invalid " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+            //            TurnOnFireWallAndCopyLocal(); // // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit this program
+            //            break;
 
-            }
-                       
+            //    }
+
+            //}
+
+            FrInstall(); // call FrInstall() to install the SERVER agent
+
         }
 
         /// <summary>
@@ -164,10 +166,10 @@ namespace Kaseya_Win10
                     PollLine = DE_Helpers.DE_FileManager.ReadAllFromFile(@"C:\B50\poll.bat"); // read the one line of text in poll.bat
                     int positionOfNewLine = PollLine.IndexOf("\r\n");
                     if (positionOfNewLine >= 0)
-                    {
-                        PollLine = PollLine.Substring(0, PollLine.IndexOf("\r\n"));  // trim any leading and trailing blanks
-                    }
-                    string storeNumber = PollLine.Substring(PollLine.Length - 4); // extract the last 4 characters, they are the store number
+                       PollLine = PollLine.Substring(0, PollLine.IndexOf("\r\n")).Trim();  // trim any leading and trailing blanks
+                    var lastOperatorIndex = PollLine.LastIndexOf(" "); // position of the last blank character in this string?
+                    string storeNumber = PollLine.Substring(lastOperatorIndex,PollLine.Length - lastOperatorIndex).Trim(); // extract all characters  after the last space (store number) 
+                    
                     DE_Helpers.DE_FileManager.Log("Found store " + storeNumber, DE_Helpers.DE_FileManager.LogEntryType.Note);
                     return storeNumber;
                 }
@@ -220,19 +222,11 @@ namespace Kaseya_Win10
                             select new KaseyaAgent(column[0], column[1], column[2]); //column[0] = Store, column[1] = Agent, column[2] = Site
 
                     KasayaAgentLinkedList = query.Where(m => (m.Store.Length > 0) && (m.Site.Length > 0)).ToList(); // populate a linked list using the Linq variable 'query', discard missing data
-                }
-                 catch(Exception ex)
-                {
 
-                    DE_Helpers.DE_FileManager.Log("Read and parse of DE_IHOP_CC_Agents.csv failed " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
-                    return;
+                    KasayaAgentLinkedList.ForEach(m => // visit each node in the KasayaAgent linked list, the current node is pointed to by m variable 
+                    {
 
-                }
-
-                KasayaAgentLinkedList.ForEach(m => // visit each node in the KasayaAgent linked list, the current node is pointed to by m variable 
-                {
-                    
-                        if (m.Store == store)
+                        if (m.Store == store) // if a match is found between the storeId in poll.bat and a record in DE_IHOP_CC_Agents.csv do a Franchise install
                         {
                             string Agent = m.Agent;
                             string site = m.Site;
@@ -302,16 +296,21 @@ namespace Kaseya_Win10
 
                                 }
                             }
-                             catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 DE_Helpers.DE_FileManager.Log("Error occured during install " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
 
                             }
-
-
                         }
-                   
-                });
+
+                    });
+                    DEInstall(); // if no match is found between the storeId in poll.bat and a record in DE_IHOP_CC_Agents.csv do a DEinstall
+                }
+                catch(Exception ex)
+                {
+                    DE_Helpers.DE_FileManager.Log("Read and parse of DE_IHOP_CC_Agents.csv failed " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                    DEInstall(); // do a DEinstall due to a bad DE_IHOP_CC_Agents.csv file
+            }
         }
             
 
