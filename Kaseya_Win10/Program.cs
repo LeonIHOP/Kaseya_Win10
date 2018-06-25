@@ -45,10 +45,10 @@ namespace Kaseya_Win10
                 DE_Helpers.DE_FileManager.Log("***** Kaseya Install Failed ***** " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
                 DE_Helpers.DE_FileManager.Log("***** Failed to create directories for Kaseya_Win10.exe C:\\Source\\Kaseya D:\\Source\\Kaseya ***** " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
             }
+            DE_Helpers.DE_FileManager.Log("***** Kaseya Install Script 1.4 *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
             try
             {
                 store = StoreNumber("IHOP"); // Pass in 'IHOP' string and recieve a store number from entry in the C:\B50\poll.bat file
-                DE_Helpers.DE_FileManager.Log("***** Kaseya Install Script 1.4 *****", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 PollCheck(store); //call PollCheck and pass in the store number
                 AgentCheck(); // Call AgentCheck to install Kaseya if it is not installed
             }
@@ -142,6 +142,7 @@ namespace Kaseya_Win10
             {
                 DE_Helpers.DE_FileManager.Log("looking for store number in poll.bat", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 string result = Poll(concept); // pass concept variable to Poll function
+                DE_Helpers.DE_FileManager.Log("Found store " + result, DE_Helpers.DE_FileManager.LogEntryType.Note);
                 return result; // return store number
             }
             else {
@@ -169,8 +170,6 @@ namespace Kaseya_Win10
                        PollLine = PollLine.Substring(0, PollLine.IndexOf("\r\n")).Trim();  // trim any leading and trailing blanks
                     var lastOperatorIndex = PollLine.LastIndexOf(" "); // position of the last blank character in this string?
                     string storeNumber = PollLine.Substring(lastOperatorIndex,PollLine.Length - lastOperatorIndex).Trim(); // extract all characters  after the last space (store number) 
-                    
-                    DE_Helpers.DE_FileManager.Log("Found store " + storeNumber, DE_Helpers.DE_FileManager.LogEntryType.Note);
                     return storeNumber;
                 }
                  catch(Exception ex) {
@@ -424,12 +423,12 @@ namespace Kaseya_Win10
                         DE_Helpers.DE_FileManager.Log("unable to create C:\\Temp\\delete_Kaseya.bat " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
                         AppExit(); //log and exit 
                     }
-                    
+
                     //DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion(); // assign OS version to os variable
                     //string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun,1,os);
+                    DE_Helpers.DE_FileManager.Log("invoking C:\\Temp\\delete_Kaseya.bat ... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
                     try
                     {
-                        DE_Helpers.DE_FileManager.Log("invoking C:\\Temp\\delete_Kaseya.bat ... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
                         commandToRun = "C:\\Temp\\delete_Kaseya.bat"; // create the command that will execute this batch file
                         System.Diagnostics.Process.Start(commandToRun); // run the batch file command at the command line
                     }
