@@ -248,11 +248,10 @@ namespace Kaseya_Win10
                                         WebClient wc = new WebClient(); // wc is an object that is used for sending and recieveing data to/from a URL
                                         try
                                         {
-                                            DE_Helpers.DE_FileManager.Log("Installing Franchise Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                            
                                             wc.DownloadFile(newURL, @"c:\temp\KcsSetup.exe"); // download KcsSetup.exe which is a Kaseya installer from Rosnet to c:\temp directory
-                                            DE_Helpers.DE_FileManager.Log("Download complete", DE_Helpers.DE_FileManager.LogEntryType.Note);
                                             wc.Dispose();
-
+                                            DE_Helpers.DE_FileManager.Log("Franchise KcsSetup.exe Download complete. Installing Franchise Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
                                         }
                                         catch (Exception ex)
                                         {
@@ -264,24 +263,21 @@ namespace Kaseya_Win10
                                         {
                                             string commandToRun = @"c:\temp\KcsSetup.exe";
                                             DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion(); // assign OS version to os variable
-                                            string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 300, os); // Run the Kaseya setup, wait at most 5 minutes 300 seconds for the install to complete
-                                            DE_Helpers.DE_FileManager.Log("Installing Franchise Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                            string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 600, os); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
+                                            //string output = DE_Helpers.DE_FileManager.RunCommand(commandToRun, 600); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
+                                            DE_Helpers.DE_FileManager.Log("Installed Franchise Kaseya agent ..." + output, DE_Helpers.DE_FileManager.LogEntryType.Note);
                                         }
                                         catch (Exception ex)
                                         {
-                                            DE_Helpers.DE_FileManager.Log("Install exited. It was successful if it timed out: " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                            DE_Helpers.DE_FileManager.Log("Install exited. No success. Error occured running KcsSetup.exe... " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
                                             TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if its in c:\startup and exit this application
                                         }
-
-                                        using (RegistryKey key = Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\KASEYA\\AGENT"))
-                                        {
-                                            var iQuery = key.GetValue("DriverControl");
-                                            var iAgent = key.GetValue("DriverControl\\" + iQuery + "MachineID");
-                                            DE_Helpers.DE_FileManager.Log("Kaseya agent " + iAgent + " succesfully installed.", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                            DE_Helpers.DE_FileManager.Log("Install complete", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                            TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit
-                                        }
-
+                                        
+                                        if (File.Exists(@"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Kaseya\Kaseya Agent.lnk")) // path to the Kaseya shortcut file
+                                            DE_Helpers.DE_FileManager.Log("Succesfully confirmed Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                        else 
+                                            DE_Helpers.DE_FileManager.Log("Failed to  confirm Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                        TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit                                                                        
                                     }
                                     else
                                     {
@@ -311,8 +307,6 @@ namespace Kaseya_Win10
                     DEInstall(); // do a DEinstall due to a bad DE_IHOP_CC_Agents.csv file
             }
         }
-            
-
            
 
         /// <summary>
@@ -340,8 +334,8 @@ namespace Kaseya_Win10
             {
                 string commandToRun = @"c:\temp\KcsSetup.exe";
                 DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion();
-                string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 300, os); // Run the Kaseya setup, wait at most 5 minutes 300 seconds for the install to complete
-                DE_Helpers.DE_FileManager.Log("Installing Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 600, os); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
+                DE_Helpers.DE_FileManager.Log("Installed Dine Kaseya agent succesfully...", DE_Helpers.DE_FileManager.LogEntryType.Note);
             }
              catch(Exception ex)
             {
