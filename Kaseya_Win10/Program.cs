@@ -195,6 +195,7 @@ namespace Kaseya_Win10
                                             {
                                                 using (WebClient wc = new WebClient())
                                                 {
+                                                    DE_Helpers.DE_FileManager.Log("Franchise KcsSetup.exe download is in progress. URL is " + newURL, DE_Helpers.DE_FileManager.LogEntryType.Note);
                                                     wc.DownloadFile(newURL, @"c:\temp\KcsSetup.exe"); // download KcsSetup.exe which is a Kaseya installer from Rosnet to c:\temp directory
                                                     downloaded = true;
                                                     wc.Dispose();
@@ -289,6 +290,7 @@ namespace Kaseya_Win10
                 {
                     using (WebClient wc = new WebClient())
                     {
+                        DE_Helpers.DE_FileManager.Log("DineEquity KcsSetup.exe download is in progress. URL is "  + "https://cc.rosnet.com/mkDefault.asp?id=58224222" , DE_Helpers.DE_FileManager.LogEntryType.Note);
                         wc.DownloadFile("https://cc.rosnet.com/mkDefault.asp?id=58224222", @"c:\temp\KcsSetup.exe"); // download KcsSetup.exe which is a Kaseya installer from Rosnet to c:\temp directory
                         downloaded = true;
                         wc.Dispose();
