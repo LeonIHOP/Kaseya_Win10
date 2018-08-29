@@ -99,6 +99,7 @@ namespace Kaseya_Win10
         static string Poll(string concept)
         {
             string PollLine;
+            string [] PollLineArray;
             if (concept == "IHOP")
             {
                 try
@@ -107,8 +108,11 @@ namespace Kaseya_Win10
                     int positionOfNewLine = PollLine.IndexOf("\r\n");
                     if (positionOfNewLine >= 0)
                        PollLine = PollLine.Substring(0, PollLine.IndexOf("\r\n")).Trim();  // trim any leading and trailing blanks
-                    var lastOperatorIndex = PollLine.LastIndexOf(" "); // position of the last blank character in this string?
-                    string storeNumber = PollLine.Substring(lastOperatorIndex,PollLine.Length - lastOperatorIndex).Trim(); // extract all characters  after the last space (store number) 
+
+                    PollLineArray = PollLine.Split(' ');
+                    //var lastOperatorIndex = PollLine.LastIndexOf(" "); // position of the last blank character in this string?
+                    //string storeNumber = PollLine.Substring(lastOperatorIndex,PollLine.Length - lastOperatorIndex).Trim(); // extract all characters  after the last space (store number) 
+                    string storeNumber = PollLineArray[3]; // the store number should be in the 3rd position (0-1-2-3) 
                     return storeNumber;
                 }
                  catch(Exception ex) {
@@ -155,111 +159,20 @@ namespace Kaseya_Win10
 
                 try
                 {
+                    string storeFromcompName = null;
                     var query = from currentLine in File.ReadAllLines(csv_localPath) // Linq query statement to read and parse the DE_IHOP_CC_Agents.csv file, x variable points to the current line
                             let column = currentLine.Split(',') // use ',' as the delimiter to separate the columns in the curent record
                             select new KaseyaAgent(column[0], column[1], column[2]); //column[0] = Store, column[1] = Agent, column[2] = Site
 
                     KasayaAgentLinkedList = query.Where(m => (m.Store.Length > 0) && (m.Site.Length > 0)).ToList(); // populate a linked list using the Linq variable 'query', discard missing data
-
-                    KasayaAgentLinkedList.ForEach(m => // visit each node in the KasayaAgent linked list, the current node is pointed to by m variable 
+                    storeFromcompName = Environment.MachineName.ToString().Trim();
+                    
+                    if (!((FindStoreInCSV(KasayaAgentLinkedList, store)) || (FindStoreInCSV(KasayaAgentLinkedList, storeFromcompName.Substring(storeFromcompName.Length - 4) )))) // use poll.bat store number or get store number from the computer name
                     {
-
-                        if (m.Store == store) // if a match is found between the storeId in poll.bat and a record in DE_IHOP_CC_Agents.csv do a Franchise install
-                        {
-                            string Agent = m.Agent;
-                            string site = m.Site;
-                            string Text = "install";
-                            string[] FoundWord; //string array that will contain HTML code substrings
-                            int retries = 0;
-                            int maxRetries = 3;
-                            bool downloaded = false;
-
-                            try
-                            {
-
-                                try
-                                {
-                                    string source = new System.Net.WebClient().DownloadString(site); //pull down the HTML source from the download page so we can extract the direct download URL from it
-                                    int KeyWord = source.IndexOf(Text, 1); // find the install string after href on the ROSnet download page for this restaurant
-
-                                    if (KeyWord != 0) // no error
-                                    {
-
-                                        FoundWord = source.Substring(KeyWord).Split('"').ToArray(); // split the HTML source code into sub-strings and insert into the FoundWord array
-                                        string newURL = ("https://cc.rosnet.com/" + FoundWord[0]); // construct the URL to download KcsSetup.exe by appending KcsSetup.exe path to Rosnet URL 
-                                        DE_Helpers.DE_FileManager.Log(" Downloading Franchise KcsSetup.exe ...", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                        while (!downloaded && (retries < maxRetries))
-                                        {
-
-                                            try
-                                            {
-                                                using (WebClient wc = new WebClient())
-                                                {
-                                                    DE_Helpers.DE_FileManager.Log("Franchise KcsSetup.exe download is in progress. URL is " + newURL, DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                                    wc.DownloadFile(newURL, @"c:\temp\KcsSetup.exe"); // download KcsSetup.exe which is a Kaseya installer from Rosnet to c:\temp directory
-                                                    downloaded = true;
-                                                    wc.Dispose();
-                                                    DE_Helpers.DE_FileManager.Log("Franchise KcsSetup.exe Download complete. Installing Franchise Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                                }
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                retries++;
-                                                DE_Helpers.DE_FileManager.Log("Error occurred downloading Franchise KcsSetup.exe. Retry number " + retries.ToString() + " " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                                System.Threading.Thread.Sleep(100000);
-                                            }
-
-                                        }
-                                        if (downloaded == true)
-                                        {
-                                            DE_Helpers.DE_FileManager.Log("Starting the Kaseya install...", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                            try
-                                            {
-                                                string commandToRun = @"c:\temp\KcsSetup.exe";
-                                                DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion(); // assign OS version to os variable
-                                                string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 600, os); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
-                                                 //string output = DE_Helpers.DE_FileManager.RunCommand(commandToRun, 600); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
-                                                DE_Helpers.DE_FileManager.Log("Installed Franchise Kaseya agent ..." + output, DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                DE_Helpers.DE_FileManager.Log("Install exited. No success. Error occured running KcsSetup.exe... " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                                TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if its in c:\startup and exit this application
-                                            }
-
-                                            if (File.Exists(@"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Kaseya\Kaseya Agent.lnk")) // path to the Kaseya shortcut file
-                                                DE_Helpers.DE_FileManager.Log("Succesfully confirmed Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                            else
-                                                DE_Helpers.DE_FileManager.Log("Failed to  confirm Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                            TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit
-                                        }
-                                        else // could not download KcsSetup.exe
-                                        {
-                                            DE_Helpers.DE_FileManager.Log("Failed to download Franchise KcsSetup.exe after retries " + retries.ToString() , DE_Helpers.DE_FileManager.LogEntryType.Note);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        DE_Helpers.DE_FileManager.Log("Error occured, Could not locate the install string after href on the ROSnet download page for this restaurant ", DE_Helpers.DE_FileManager.LogEntryType.Note);
-
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    DE_Helpers.DE_FileManager.Log("Error occured downloading HTML source from the download page " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
-
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                DE_Helpers.DE_FileManager.Log("Error occured during install " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
-
-                            }
-                        }
-
-                    });
-                    DE_Helpers.DE_FileManager.Log("No match for StoreNUmber " + store + "in DE_IHOP_CC_Agents.csv ", DE_Helpers.DE_FileManager.LogEntryType.Note);
-                    DEInstall(); // if no match is found between the storeId in poll.bat and a record in DE_IHOP_CC_Agents.csv do a DEinstall
+                        DE_Helpers.DE_FileManager.Log("No match for StoreNUmber " + store + "in DE_IHOP_CC_Agents.csv ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                        DEInstall(); // if no match is found between the storeId in poll.bat and a record in DE_IHOP_CC_Agents.csv do a DEinstall
+                    }
+                
                 }
                 catch(Exception ex)
                 {
@@ -314,7 +227,7 @@ namespace Kaseya_Win10
                     string commandToRun = @"c:\temp\KcsSetup.exe";
                     DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion();
                     string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 600, os); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
-                    DE_Helpers.DE_FileManager.Log("Installed Dine Kaseya agent succesfully...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                    DE_Helpers.DE_FileManager.Log("Installed generic Dine Kaseya agent succesfully...", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 }
                 catch (Exception ex)
                 {
@@ -324,9 +237,9 @@ namespace Kaseya_Win10
 
 
                 if (File.Exists(@"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Kaseya\Kaseya Agent.lnk")) // path to the Kaseya shortcut file
-                    DE_Helpers.DE_FileManager.Log("Succesfully confirmed Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                    DE_Helpers.DE_FileManager.Log("Succesfully confirmed Generic Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 else
-                    DE_Helpers.DE_FileManager.Log("Failed to  confirm Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                    DE_Helpers.DE_FileManager.Log("Failed to confirm Generic Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
                 TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit
                                           
 
@@ -428,6 +341,109 @@ namespace Kaseya_Win10
             AppExit(); //log and exit 
         }
 
+        private static bool FindStoreInCSV(List<KaseyaAgent> KasayaAgentLinkedList, string store)
+        {
+            bool storeFound = false;
+            DE_Helpers.DE_FileManager.Log("Searching for Store number " + store, DE_Helpers.DE_FileManager.LogEntryType.Note);
+            KasayaAgentLinkedList.ForEach(m => // visit each node in the KasayaAgent linked list, the current node is pointed to by m variable 
+            {
+
+                if (m.Store == store) // if a match is found between the storeId in poll.bat and a record in DE_IHOP_CC_Agents.csv do a Franchise install
+                {
+                    string Agent = m.Agent;
+                    string site = m.Site;
+                    string Text = "install";
+                    string[] FoundWord; //string array that will contain HTML code substrings
+                    int retries = 0;
+                    int maxRetries = 3; // retry 3 times at most
+                    bool downloaded = false;
+                    storeFound = true;
+                    try
+                    {
+
+                        try
+                        {
+                            string source = new System.Net.WebClient().DownloadString(site); //pull down the HTML source from the download page so we can extract the direct download URL from it
+                            int KeyWord = source.IndexOf(Text, 1); // find the install string after href on the ROSnet download page for this restaurant
+
+                            if (KeyWord != 0) // no error
+                            {
+
+                                FoundWord = source.Substring(KeyWord).Split('"').ToArray(); // split the HTML source code into sub-strings and insert into the FoundWord array
+                                string newURL = ("https://cc.rosnet.com/" + FoundWord[0]); // construct the URL to download KcsSetup.exe by appending KcsSetup.exe path to Rosnet URL 
+                                DE_Helpers.DE_FileManager.Log(" Downloading Franchise KcsSetup.exe ...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                while (!downloaded && (retries < maxRetries))
+                                {
+
+                                    try
+                                    {
+                                        using (WebClient wc = new WebClient())
+                                        {
+                                            DE_Helpers.DE_FileManager.Log("Franchise KcsSetup.exe download is in progress. URL is " + newURL, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                            wc.DownloadFile(newURL, @"c:\temp\KcsSetup.exe"); // download KcsSetup.exe which is a Kaseya installer from Rosnet to c:\temp directory
+                                            downloaded = true;
+                                            wc.Dispose();
+                                            DE_Helpers.DE_FileManager.Log("Franchise KcsSetup.exe Download complete. Installing Franchise Kaseya agent...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        retries++;
+                                        DE_Helpers.DE_FileManager.Log("Error occurred downloading Franchise KcsSetup.exe. Retry number " + retries.ToString() + " " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                        System.Threading.Thread.Sleep(100000);
+                                    }
+
+                                }
+                                if (downloaded == true)
+                                {
+                                    DE_Helpers.DE_FileManager.Log("Starting the Kaseya install...", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                    try
+                                    {
+                                        string commandToRun = @"c:\temp\KcsSetup.exe";
+                                        DE_Helpers.DE_FileManager.OperatingSystem os = DE_Helpers.DE_FileManager.GetOperatingSystemVersion(); // assign OS version to os variable
+                                        string output = DE_Helpers.DE_FileManager.RunCommandAsAdmin(commandToRun, 600, os); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
+                                                                                                                            //string output = DE_Helpers.DE_FileManager.RunCommand(commandToRun, 600); // Run the Kaseya setup, wait at most 10 minutes 600 seconds for the install to complete
+                                        DE_Helpers.DE_FileManager.Log("Installed Franchise Kaseya agent ..." + output, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        DE_Helpers.DE_FileManager.Log("Install exited. No success. Error occured running KcsSetup.exe... " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                        TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if its in c:\startup and exit this application
+                                    }
+
+                                    if (File.Exists(@"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Kaseya\Kaseya Agent.lnk")) // path to the Kaseya shortcut file
+                                        DE_Helpers.DE_FileManager.Log("Succesfully confirmed Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                    else
+                                        DE_Helpers.DE_FileManager.Log("Failed to  confirm Franchise Kaseya agent install... ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                    TurnOnFireWallAndCopyLocal(); // backup Kaseya_Win10.exe, delete it if it is in c:\startup and exit
+                                }
+                                else // could not download KcsSetup.exe
+                                {
+                                    DE_Helpers.DE_FileManager.Log("Failed to download Franchise KcsSetup.exe after retries " + retries.ToString(), DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                }
+                            }
+                            else
+                            {
+                                DE_Helpers.DE_FileManager.Log("Error occured, Could not locate the install string after href on the ROSnet download page for this restaurant ", DE_Helpers.DE_FileManager.LogEntryType.Note);
+                                
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            DE_Helpers.DE_FileManager.Log("Error occured downloading HTML source from the download page " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                            
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DE_Helpers.DE_FileManager.Log("Error occured during install " + ex.Message, DE_Helpers.DE_FileManager.LogEntryType.Note);
+                        
+                    }
+                }
+
+            });
+            return storeFound;
+        }
         /// <summary>
         /// Log status and exit application
         /// </summary>
